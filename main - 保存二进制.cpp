@@ -25,14 +25,9 @@
 #include "AXonLink.h"
 
 #include <iostream>
-#include <opencv2/opencv.hpp>
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 #include <direct.h>
-#include <windows.h>
-#include <thread>
+#include <fstream>
 
 
 using namespace std;
@@ -43,72 +38,12 @@ using namespace cv;
 bool depth_img_isvalid = false;
 bool color_img_isvalid = false;
 bool ir_img_isvalid = false;
-int flag = 0;
-int counter = 0;		//保存文件计数
-cv::Mat mImageDepth;
+bool flag = 0;
 
 
 bool get_true() { return true; }
 
-void saveImg()
-{
-	while (get_true())
-	{
-		if (depth_img_isvalid)
-		{
-			DWORD start_t = GetTickCount();
-			//获取当前时间  HHMM
-			time_t t = time(0);
-			char tmp[64];
-			strftime(tmp, sizeof(tmp), "%H%M", localtime(&t));
-			if (tmp[3] == 0)
-			{
-				tmp[3] = tmp[2];
-				tmp[2] = '0';
-				tmp[4] = 0;
-			}
-
-
-			//存储路径 C:/HHMM（当前时间）
-			String dir = "G:/" + String(tmp);
-			if (_access(dir.c_str(), 0) == -1)
-			{
-				//文件夹不存在 创建文件夹
-				int flag = _mkdir(dir.c_str());
-				
-				if (flag == 0)
-				{
-					cout << counter << "  make successfully" << endl;
-				}
-				else {
-					cout << "make fsiled" << endl;
-				}
-				counter = 1;
-			}
-
-			//保存图片
-
-			//图片命名：xxxx.png
-			char str[256];
-			sprintf(str, "%04d.png", counter);
-
-			vector<int> compression_params;
-			compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);  //选择jpeg
-			compression_params.push_back(9); //在这个填入你要的图片质量
-
-			String depth_dir = dir + "/" + String(str);
-			imwrite(depth_dir, mImageDepth, compression_params);
-
-			counter++;
-
-
-			depth_img_isvalid = false;
-			printf("save time: %d\n", GetTickCount() - start_t);
-		}
-
-	}
-
-}
+Capture capture = Capture();
 
 int main(int argc, char** argv)
 {
@@ -139,11 +74,11 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	//--获取驱动版本号---------------------------------------
+//--获取驱动版本号---------------------------------------
 	OniVersion drver;
 	int nsize;
 	nsize = sizeof(drver);
-	device.getProperty(ONI_DEVICE_PROPERTY_DRIVER_VERSION, &drver, &nsize);    /*获取驱动版本号*/
+	device.getProperty(ONI_DEVICE_PROPERTY_DRIVER_VERSION, &drver, &nsize);    /*获取驱动版本号*/																		
 	printf("AXon driver version V%d.%d.%d.%d\n", drver.major, drver.minor,
 		drver.maintenance, drver.build);
 
@@ -172,7 +107,7 @@ int main(int argc, char** argv)
 	const openni::SensorInfo* depthinfo = device.getSensorInfo(openni::SENSOR_DEPTH);
 	if (depthinfo)
 	{
-
+		
 		for (int i = 0; i < depthinfo->getSupportedVideoModes().getSize(); i++)
 		{
 			printf("\nDepth info: videomode %d %dx%d Fps %d f %d\n", i,                          //会被执行输出
@@ -189,7 +124,7 @@ int main(int argc, char** argv)
 		}
 	}
 
-	//------------ Creat depth stream ---------------------------------------------------
+//------------ Creat depth stream ---------------------------------------------------
 	rc = depth.create(device, openni::SENSOR_DEPTH);
 	if (rc == openni::STATUS_OK)
 	{
@@ -205,88 +140,86 @@ int main(int argc, char** argv)
 		printf("SimpleViewer: Couldn't find depth stream:\n%s\n", openni::OpenNI::getExtendedError());
 	}
 
-	//-------------- Creat Color stream ----------------------------------------------------
-	/*
+//-------------- Creat Color stream ----------------------------------------------------
 	rc = color.create(device, openni::SENSOR_COLOR);
 	if (rc == openni::STATUS_OK)
 	{
-	openni::VideoMode vm;
-	openni::VideoMode dvm;
-	dvm = depth.getVideoMode();
-	vm = color.getVideoMode();
+		openni::VideoMode vm;
+		openni::VideoMode dvm;
+		dvm = depth.getVideoMode();
+		vm = color.getVideoMode();
 
-	vm.setResolution(dvm.getResolutionX(), dvm.getResolutionY());
-	color.setVideoMode(vm);
-	rc = color.start();  // start color
-	if (rc != openni::STATUS_OK)
-	{
-	printf("SimpleViewer: Couldn't start color stream:\n%s\n", openni::OpenNI::getExtendedError());
-	color.destroy();
-	}
+		vm.setResolution(dvm.getResolutionX(), dvm.getResolutionY());
+		color.setVideoMode(vm);
+		rc = color.start();  // start color
+		if (rc != openni::STATUS_OK)
+		{
+			printf("SimpleViewer: Couldn't start color stream:\n%s\n", openni::OpenNI::getExtendedError());
+			color.destroy();
+		}
 	}
 	else
 	{
-	printf("SimpleViewer: Couldn't find color stream:\n%s\n", openni::OpenNI::getExtendedError());
+		printf("SimpleViewer: Couldn't find color stream:\n%s\n", openni::OpenNI::getExtendedError());
 	}
-
+	
 
 	AXonLinkCamParam camParam;
 	int dataSize = sizeof(AXonLinkCamParam);
 	device.getProperty(AXONLINK_DEVICE_PROPERTY_GET_CAMERA_PARAMETERS, &camParam, &dataSize);
 
-
+	
 	/*for (int i = 0; i < nResolutionColor; i++)
 	{
-	printf("astColorParam x =%d\n", camParam.astColorParam[i].ResolutionX);
-	printf("astColorParam y =%d\n", camParam.astColorParam[i].ResolutionY);
-	printf("astColorParam fx =%.5f\n", camParam.astColorParam[i].fx);
-	printf("astColorParam fy =%.5f\n", camParam.astColorParam[i].fy);
-	printf("astColorParam cx =%.5f\n", camParam.astColorParam[i].cx);
-	printf("astColorParam cy =%.5f\n", camParam.astColorParam[i].cy);
-	printf("astColorParam k1 =%.5f\n", camParam.astColorParam[i].k1);
-	printf("astColorParam k2 =%.5f\n", camParam.astColorParam[i].k2);
-	printf("astColorParam p1 =%.5f\n", camParam.astColorParam[i].p1);
-	printf("astColorParam p2 =%.5f\n", camParam.astColorParam[i].p2);
-	printf("astColorParam k3 =%.5f\n", camParam.astColorParam[i].k3);
-	printf("astColorParam k4 =%.5f\n", camParam.astColorParam[i].k4);
-	printf("astColorParam k5 =%.5f\n", camParam.astColorParam[i].k5);
-	printf("astColorParam k6 =%.5f\n", camParam.astColorParam[i].k6);
+		printf("astColorParam x =%d\n", camParam.astColorParam[i].ResolutionX);
+		printf("astColorParam y =%d\n", camParam.astColorParam[i].ResolutionY);
+		printf("astColorParam fx =%.5f\n", camParam.astColorParam[i].fx);
+		printf("astColorParam fy =%.5f\n", camParam.astColorParam[i].fy);
+		printf("astColorParam cx =%.5f\n", camParam.astColorParam[i].cx);
+		printf("astColorParam cy =%.5f\n", camParam.astColorParam[i].cy);
+		printf("astColorParam k1 =%.5f\n", camParam.astColorParam[i].k1);
+		printf("astColorParam k2 =%.5f\n", camParam.astColorParam[i].k2);
+		printf("astColorParam p1 =%.5f\n", camParam.astColorParam[i].p1);
+		printf("astColorParam p2 =%.5f\n", camParam.astColorParam[i].p2);
+		printf("astColorParam k3 =%.5f\n", camParam.astColorParam[i].k3);
+		printf("astColorParam k4 =%.5f\n", camParam.astColorParam[i].k4);
+		printf("astColorParam k5 =%.5f\n", camParam.astColorParam[i].k5);
+		printf("astColorParam k6 =%.5f\n", camParam.astColorParam[i].k6);
 	}
 	for (int i = 0; i < nResolutionDepth; i++)
 	{
-	printf("astDepthParam x =%d\n", camParam.astDepthParam[i].ResolutionX);
-	printf("astDepthParam y =%d\n", camParam.astDepthParam[i].ResolutionY);
-	printf("astDepthParam fx =%.5f\n", camParam.astDepthParam[i].fx);
-	printf("astDepthParam fy =%.5f\n", camParam.astDepthParam[i].fy);
-	printf("astDepthParam cx =%.5f\n", camParam.astDepthParam[i].cx);
-	printf("astDepthParam cy =%.5f\n", camParam.astDepthParam[i].cy);
-	printf("astDepthParam k1 =%.5f\n", camParam.astDepthParam[i].k1);
-	printf("astDepthParam k2 =%.5f\n", camParam.astDepthParam[i].k2);
-	printf("astDepthParam p1 =%.5f\n", camParam.astDepthParam[i].p1);
-	printf("astDepthParam p2 =%.5f\n", camParam.astDepthParam[i].p2);
-	printf("astDepthParam k3 =%.5f\n", camParam.astDepthParam[i].k3);
-	printf("astDepthParam k4 =%.5f\n", camParam.astDepthParam[i].k4);
-	printf("astDepthParam k5 =%.5f\n", camParam.astDepthParam[i].k5);
-	printf("astDepthParam k6 =%.5f\n", camParam.astDepthParam[i].k6);
+		printf("astDepthParam x =%d\n", camParam.astDepthParam[i].ResolutionX);
+		printf("astDepthParam y =%d\n", camParam.astDepthParam[i].ResolutionY);
+		printf("astDepthParam fx =%.5f\n", camParam.astDepthParam[i].fx);
+		printf("astDepthParam fy =%.5f\n", camParam.astDepthParam[i].fy);
+		printf("astDepthParam cx =%.5f\n", camParam.astDepthParam[i].cx);
+		printf("astDepthParam cy =%.5f\n", camParam.astDepthParam[i].cy);
+		printf("astDepthParam k1 =%.5f\n", camParam.astDepthParam[i].k1);
+		printf("astDepthParam k2 =%.5f\n", camParam.astDepthParam[i].k2);
+		printf("astDepthParam p1 =%.5f\n", camParam.astDepthParam[i].p1);
+		printf("astDepthParam p2 =%.5f\n", camParam.astDepthParam[i].p2);
+		printf("astDepthParam k3 =%.5f\n", camParam.astDepthParam[i].k3);
+		printf("astDepthParam k4 =%.5f\n", camParam.astDepthParam[i].k4);
+		printf("astDepthParam k5 =%.5f\n", camParam.astDepthParam[i].k5);
+		printf("astDepthParam k6 =%.5f\n", camParam.astDepthParam[i].k6);
 	}
 	printf("R = %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f \n", camParam.stExtParam.R_Param[0], camParam.stExtParam.R_Param[1], camParam.stExtParam.R_Param[2], camParam.stExtParam.R_Param[3], camParam.stExtParam.R_Param[4], camParam.stExtParam.R_Param[5], camParam.stExtParam.R_Param[6], camParam.stExtParam.R_Param[7], camParam.stExtParam.R_Param[8]);
 	printf("T = %.5f %.5f %.5f \n", camParam.stExtParam.T_Param[0], camParam.stExtParam.T_Param[1], camParam.stExtParam.T_Param[2]);*/
-
-	//--------------Creat Ir stream--------------------------------------------------
-	/*
+	
+//--------------Creat Ir stream--------------------------------------------------
 	rc = ir.create(device, openni::SENSOR_IR);
 	if (rc == openni::STATUS_OK)
 	{
-	rc = ir.start();   // start IR
-	if (rc != openni::STATUS_OK)
-	{
-	printf("SimpleViewer: Couldn't start ir stream:\n%s\n", openni::OpenNI::getExtendedError());
-	ir.destroy();
-	}
+		rc = ir.start();   // start IR 
+		if (rc != openni::STATUS_OK)
+		{
+			printf("SimpleViewer: Couldn't start ir stream:\n%s\n", openni::OpenNI::getExtendedError());
+			ir.destroy();
+		}
 	}
 	else
 	{
-	printf("SimpleViewer: Couldn't find ir stream:\n%s\n", openni::OpenNI::getExtendedError());
+		printf("SimpleViewer: Couldn't find ir stream:\n%s\n", openni::OpenNI::getExtendedError());
 	}
 	AXonLinkGetExposureLevel value;
 	int nSize = sizeof(value);
@@ -297,28 +230,27 @@ int main(int argc, char** argv)
 
 	if (!depth.isValid() || !color.isValid() || !ir.isValid())
 	{
-	printf("SimpleViewer: No valid streams. Exiting\n");
-	openni::OpenNI::shutdown();
-	return 2;
+		printf("SimpleViewer: No valid streams. Exiting\n");
+		openni::OpenNI::shutdown();
+		return 2;
 	}
 	rc = device.setDepthColorSyncEnabled(true);
 	if (rc != openni::STATUS_OK)
 	{
-	printf("start sync failed1\n");
-	openni::OpenNI::shutdown();
-	return 4;
+		printf("start sync failed1\n");
+		openni::OpenNI::shutdown();
+		return 4;
 	}
 
 	rc = device.setImageRegistrationMode(IMAGE_REGISTRATION_DEPTH_TO_COLOR);				//对齐
 	if (rc != openni::STATUS_OK)
 	{
-	printf("start registration failed\n");
-	openni::OpenNI::shutdown();
-	return 5;
+		printf("start registration failed\n");
+		openni::OpenNI::shutdown();
+		return 5;
 	}
-	*/
 
-	//--------------------------------------------
+//--------------------------------------------
 	int changedIndex;
 	openni::VideoStream**	m_streams;
 
@@ -330,30 +262,23 @@ int main(int argc, char** argv)
 	VideoFrameRef  frameColor;
 	VideoFrameRef  frameIr;
 
-	cv::Mat mScaledDepth;
-	cv::Mat mRgbDepth;
-	cv::Mat mScaledIr;
-	cv::Mat mImageRGB;
-	cv::Mat mImageIr;
-
-	cv::Mat cImageBGR;
-	cv::Mat cImageIr;
-
-	cv::Mat mFaceImg;
-
-	Vec3b colorpix = Vec3b(255, 255, 0);
+	
+	Vec3b colorpix = Vec3b(255,255,0);
 	Vec3b color_value;
 
 
 	int readIndex = 0;
-	
-	unsigned char imageBuffer1[18432000];		//30张图片 18432000  20张图片12288000  10张图片6144000
-	unsigned char imageBuffer2[18432000];
 
-	
-	thread hThread = thread(saveImg);
+	time_t t = time(0);		//上次时间
+	time_t n;			//当前时间
+	ofstream outFile;
+	char* imgData;
 
-	DWORD start_time = GetTickCount();
+	//打开文件
+	char tmp[64];
+	sprintf(tmp, "%d.bat", t);
+	outFile.open(tmp, ios::out | ios::binary);
+
 	//-------------------------
 	// main loop 
 	//-------------------------
@@ -366,57 +291,42 @@ int main(int argc, char** argv)
 			return 1;
 		}
 
+		//新的秒
+		n = time(0);
+		if (n - t > 9)
+		{
+			outFile.close();
+			printf("%d\n", readIndex);
+			readIndex = 0;
+
+			t = n;
+			char tmp[64];
+			sprintf(tmp, "C:/%d.bat", t);
+			outFile.open(tmp, ios::out | ios::binary);
+		}
+
 		switch (changedIndex)
 		{
 		case 0:
 			depth.readFrame(&frameDepth);                    //读深度流帧数据
+			readIndex++; 
+			depth_img_isvalid = true;
+		
+			imgData = (char*)frameDepth.getData();
+			outFile.write(imgData, 614400);
 			
-			unsigned char* tmp;
-			if (flag)
-				tmp = imageBuffer1 + readIndex * 614400;
-			else
-				tmp = imageBuffer2 + readIndex * 614400;
-			memcpy(tmp, frameDepth.getData(), 614400);
-			readIndex++;
-			if (readIndex >= 30)
-			{
-				readIndex = 0;
-				if (flag)
-					mImageDepth = cv::Mat(30, 307200, CV_16U, (void*)imageBuffer1);
-				else
-					mImageDepth = cv::Mat(30, 307200, CV_16U, (void*)imageBuffer2);
-				flag = ~flag;
-				depth_img_isvalid = true;
-
-				printf("capture time: %d\n", GetTickCount() - start_time);
-				start_time = GetTickCount();
-			}
 			//mImageDepth = cv::Mat(frameDepth.getHeight(), frameDepth.getWidth(), CV_16UC1, (void*)frameDepth.getData());
-			//mImageDepth.convertTo(mRgbDepth, CV_8U, 1.0 / 16, 0);
-			//applyColorMap(mRgbDepth, mRgbDepth, COLORMAP_JET);	  //将mImageDepth变成看似的深度图(伪彩色图)
 
-			//imshow("Depth", mRgbDepth);
-			//waitKey(1);
-
+			
 			break;
 		case 1:
-			//color.readFrame(&frameColor);
+			color.readFrame(&frameColor);
 			color_img_isvalid = true;
-			//mImageRGB = cv::Mat(frameColor.getHeight(), frameColor.getWidth(), CV_8UC3, (void*)frameColor.getData());
-			//cv::cvtColor(mImageRGB, cImageBGR, CV_RGB2BGR);
-
-			//imshow("Color", cImageBGR);
-			//cv::waitKey(1);
-
 
 			break;
 		case 2:
-			//ir.readFrame(&frameIr);
+			ir.readFrame(&frameIr);
 			ir_img_isvalid = true;
-			//mImageIr = cv::Mat(frameIr.getHeight(), frameIr.getWidth(), CV_8UC1, (void *)frameIr.getData());
-
-			//imshow("Ir", mImageIr);
-			//cv::waitKey(1);
 
 			break;
 		default:
@@ -424,6 +334,7 @@ int main(int argc, char** argv)
 		}
 
 
+		
 		//-----------------------------------------------------
 		// 终止快捷键
 		if (cv::waitKey(10) == 'q')

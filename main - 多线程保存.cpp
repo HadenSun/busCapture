@@ -31,7 +31,6 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <direct.h>
-#include <windows.h>
 #include <thread>
 
 
@@ -43,8 +42,9 @@ using namespace cv;
 bool depth_img_isvalid = false;
 bool color_img_isvalid = false;
 bool ir_img_isvalid = false;
-int flag = 0;
-int counter = 0;		//保存文件计数
+bool flag = 1;
+int counter = 0;
+
 cv::Mat mImageDepth;
 
 
@@ -54,9 +54,8 @@ void saveImg()
 {
 	while (get_true())
 	{
-		if (depth_img_isvalid)
+		if (!flag)
 		{
-			DWORD start_t = GetTickCount();
 			//获取当前时间  HHMM
 			time_t t = time(0);
 			char tmp[64];
@@ -70,23 +69,24 @@ void saveImg()
 
 
 			//存储路径 C:/HHMM（当前时间）
-			String dir = "G:/" + String(tmp);
+			String dir = "C:/" + String(tmp);
 			if (_access(dir.c_str(), 0) == -1)
 			{
 				//文件夹不存在 创建文件夹
 				int flag = _mkdir(dir.c_str());
-				
+				counter = 1;
 				if (flag == 0)
 				{
-					cout << counter << "  make successfully" << endl;
+					cout << "make successfully" << endl;
 				}
 				else {
 					cout << "make fsiled" << endl;
 				}
-				counter = 1;
 			}
 
 			//保存图片
+
+
 
 			//图片命名：xxxx.png
 			char str[256];
@@ -102,12 +102,11 @@ void saveImg()
 			counter++;
 
 
-			depth_img_isvalid = false;
-			printf("save time: %d\n", GetTickCount() - start_t);
+			flag = 1;
 		}
-
+		
 	}
-
+	
 }
 
 int main(int argc, char** argv)
@@ -210,23 +209,23 @@ int main(int argc, char** argv)
 	rc = color.create(device, openni::SENSOR_COLOR);
 	if (rc == openni::STATUS_OK)
 	{
-	openni::VideoMode vm;
-	openni::VideoMode dvm;
-	dvm = depth.getVideoMode();
-	vm = color.getVideoMode();
+		openni::VideoMode vm;
+		openni::VideoMode dvm;
+		dvm = depth.getVideoMode();
+		vm = color.getVideoMode();
 
-	vm.setResolution(dvm.getResolutionX(), dvm.getResolutionY());
-	color.setVideoMode(vm);
-	rc = color.start();  // start color
-	if (rc != openni::STATUS_OK)
-	{
-	printf("SimpleViewer: Couldn't start color stream:\n%s\n", openni::OpenNI::getExtendedError());
-	color.destroy();
-	}
+		vm.setResolution(dvm.getResolutionX(), dvm.getResolutionY());
+		color.setVideoMode(vm);
+		rc = color.start();  // start color
+		if (rc != openni::STATUS_OK)
+		{
+			printf("SimpleViewer: Couldn't start color stream:\n%s\n", openni::OpenNI::getExtendedError());
+			color.destroy();
+		}
 	}
 	else
 	{
-	printf("SimpleViewer: Couldn't find color stream:\n%s\n", openni::OpenNI::getExtendedError());
+		printf("SimpleViewer: Couldn't find color stream:\n%s\n", openni::OpenNI::getExtendedError());
 	}
 
 
@@ -277,16 +276,16 @@ int main(int argc, char** argv)
 	rc = ir.create(device, openni::SENSOR_IR);
 	if (rc == openni::STATUS_OK)
 	{
-	rc = ir.start();   // start IR
-	if (rc != openni::STATUS_OK)
-	{
-	printf("SimpleViewer: Couldn't start ir stream:\n%s\n", openni::OpenNI::getExtendedError());
-	ir.destroy();
-	}
+		rc = ir.start();   // start IR 
+		if (rc != openni::STATUS_OK)
+		{
+			printf("SimpleViewer: Couldn't start ir stream:\n%s\n", openni::OpenNI::getExtendedError());
+			ir.destroy();
+		}
 	}
 	else
 	{
-	printf("SimpleViewer: Couldn't find ir stream:\n%s\n", openni::OpenNI::getExtendedError());
+		printf("SimpleViewer: Couldn't find ir stream:\n%s\n", openni::OpenNI::getExtendedError());
 	}
 	AXonLinkGetExposureLevel value;
 	int nSize = sizeof(value);
@@ -297,24 +296,24 @@ int main(int argc, char** argv)
 
 	if (!depth.isValid() || !color.isValid() || !ir.isValid())
 	{
-	printf("SimpleViewer: No valid streams. Exiting\n");
-	openni::OpenNI::shutdown();
-	return 2;
+		printf("SimpleViewer: No valid streams. Exiting\n");
+		openni::OpenNI::shutdown();
+		return 2;
 	}
 	rc = device.setDepthColorSyncEnabled(true);
 	if (rc != openni::STATUS_OK)
 	{
-	printf("start sync failed1\n");
-	openni::OpenNI::shutdown();
-	return 4;
+		printf("start sync failed1\n");
+		openni::OpenNI::shutdown();
+		return 4;
 	}
 
 	rc = device.setImageRegistrationMode(IMAGE_REGISTRATION_DEPTH_TO_COLOR);				//对齐
 	if (rc != openni::STATUS_OK)
 	{
-	printf("start registration failed\n");
-	openni::OpenNI::shutdown();
-	return 5;
+		printf("start registration failed\n");
+		openni::OpenNI::shutdown();
+		return 5;
 	}
 	*/
 
@@ -333,6 +332,7 @@ int main(int argc, char** argv)
 	cv::Mat mScaledDepth;
 	cv::Mat mRgbDepth;
 	cv::Mat mScaledIr;
+	//cv::Mat mImageDepth;
 	cv::Mat mImageRGB;
 	cv::Mat mImageIr;
 
@@ -341,19 +341,16 @@ int main(int argc, char** argv)
 
 	cv::Mat mFaceImg;
 
+
 	Vec3b colorpix = Vec3b(255, 255, 0);
 	Vec3b color_value;
 
 
 	int readIndex = 0;
-	
-	unsigned char imageBuffer1[18432000];		//30张图片 18432000  20张图片12288000  10张图片6144000
-	unsigned char imageBuffer2[18432000];
+	//HANDLE hThread;		//线程句柄
+	thread* hThread;
+	hThread = new thread(saveImg);
 
-	
-	thread hThread = thread(saveImg);
-
-	DWORD start_time = GetTickCount();
 	//-------------------------
 	// main loop 
 	//-------------------------
@@ -370,28 +367,15 @@ int main(int argc, char** argv)
 		{
 		case 0:
 			depth.readFrame(&frameDepth);                    //读深度流帧数据
-			
-			unsigned char* tmp;
-			if (flag)
-				tmp = imageBuffer1 + readIndex * 614400;
-			else
-				tmp = imageBuffer2 + readIndex * 614400;
-			memcpy(tmp, frameDepth.getData(), 614400);
 			readIndex++;
-			if (readIndex >= 30)
-			{
-				readIndex = 0;
-				if (flag)
-					mImageDepth = cv::Mat(30, 307200, CV_16U, (void*)imageBuffer1);
-				else
-					mImageDepth = cv::Mat(30, 307200, CV_16U, (void*)imageBuffer2);
-				flag = ~flag;
-				depth_img_isvalid = true;
+			depth_img_isvalid = true;
 
-				printf("capture time: %d\n", GetTickCount() - start_time);
-				start_time = GetTickCount();
+			if (flag)
+			{
+				mImageDepth = cv::Mat(frameDepth.getHeight(), frameDepth.getWidth(), CV_16UC1, (void*)frameDepth.getData());
+				flag = 0;	
 			}
-			//mImageDepth = cv::Mat(frameDepth.getHeight(), frameDepth.getWidth(), CV_16UC1, (void*)frameDepth.getData());
+				
 			//mImageDepth.convertTo(mRgbDepth, CV_8U, 1.0 / 16, 0);
 			//applyColorMap(mRgbDepth, mRgbDepth, COLORMAP_JET);	  //将mImageDepth变成看似的深度图(伪彩色图)
 

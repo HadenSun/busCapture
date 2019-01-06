@@ -54,11 +54,11 @@
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
     <Import Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" />
-    <Import Project="..\opencv2.4.13_debug.props" />
+    <Import Project="D:\VS配置文件\OpenCV2.4_Win32_Debug.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
     <Import Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" />
-    <Import Project="..\VS配置文件\OpenCV2.4_Win64_Debug.props" />
+    <Import Project="D:\VS配置文件\OpenCV2.4_Win64_Debug.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
     <Import Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" />
@@ -110,6 +110,7 @@ xcopy /D /F /Y "$(ProjectDir)\glut32.dll" "$(OutDir)"
       <AdditionalLibraryDirectories>$(OutDir);$(OPENNI2_LIB64);..\..\ThirdParty\GL;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalDependencies>glut64.lib;OpenNI2.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <StackReserveSize>50971520</StackReserveSize>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /D /S /F /Y "$(OPENNI2_REDIST64)\*" "$(OutDir)"

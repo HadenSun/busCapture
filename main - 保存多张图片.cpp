@@ -32,7 +32,6 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <direct.h>
 #include <windows.h>
-#include <thread>
 
 
 using namespace std;
@@ -43,72 +42,12 @@ using namespace cv;
 bool depth_img_isvalid = false;
 bool color_img_isvalid = false;
 bool ir_img_isvalid = false;
-int flag = 0;
-int counter = 0;		//保存文件计数
-cv::Mat mImageDepth;
+bool flag = 0;
 
 
 bool get_true() { return true; }
 
-void saveImg()
-{
-	while (get_true())
-	{
-		if (depth_img_isvalid)
-		{
-			DWORD start_t = GetTickCount();
-			//获取当前时间  HHMM
-			time_t t = time(0);
-			char tmp[64];
-			strftime(tmp, sizeof(tmp), "%H%M", localtime(&t));
-			if (tmp[3] == 0)
-			{
-				tmp[3] = tmp[2];
-				tmp[2] = '0';
-				tmp[4] = 0;
-			}
-
-
-			//存储路径 C:/HHMM（当前时间）
-			String dir = "G:/" + String(tmp);
-			if (_access(dir.c_str(), 0) == -1)
-			{
-				//文件夹不存在 创建文件夹
-				int flag = _mkdir(dir.c_str());
-				
-				if (flag == 0)
-				{
-					cout << counter << "  make successfully" << endl;
-				}
-				else {
-					cout << "make fsiled" << endl;
-				}
-				counter = 1;
-			}
-
-			//保存图片
-
-			//图片命名：xxxx.png
-			char str[256];
-			sprintf(str, "%04d.png", counter);
-
-			vector<int> compression_params;
-			compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);  //选择jpeg
-			compression_params.push_back(9); //在这个填入你要的图片质量
-
-			String depth_dir = dir + "/" + String(str);
-			imwrite(depth_dir, mImageDepth, compression_params);
-
-			counter++;
-
-
-			depth_img_isvalid = false;
-			printf("save time: %d\n", GetTickCount() - start_t);
-		}
-
-	}
-
-}
+Capture capture = Capture();
 
 int main(int argc, char** argv)
 {
@@ -333,6 +272,7 @@ int main(int argc, char** argv)
 	cv::Mat mScaledDepth;
 	cv::Mat mRgbDepth;
 	cv::Mat mScaledIr;
+	cv::Mat mImageDepth;
 	cv::Mat mImageRGB;
 	cv::Mat mImageIr;
 
@@ -340,20 +280,20 @@ int main(int argc, char** argv)
 	cv::Mat cImageIr;
 
 	cv::Mat mFaceImg;
+	cv::Mat testImage = Mat::zeros(7, 614400, CV_16U);
 
 	Vec3b colorpix = Vec3b(255, 255, 0);
 	Vec3b color_value;
 
 
 	int readIndex = 0;
-	
-	unsigned char imageBuffer1[18432000];		//30张图片 18432000  20张图片12288000  10张图片6144000
+	int counter = 0;		//保存文件计数
+	int flag = 0;
+	unsigned char imageBuffer1[18432000];
 	unsigned char imageBuffer2[18432000];
 
-	
-	thread hThread = thread(saveImg);
-
 	DWORD start_time = GetTickCount();
+
 	//-------------------------
 	// main loop 
 	//-------------------------
@@ -387,9 +327,6 @@ int main(int argc, char** argv)
 					mImageDepth = cv::Mat(30, 307200, CV_16U, (void*)imageBuffer2);
 				flag = ~flag;
 				depth_img_isvalid = true;
-
-				printf("capture time: %d\n", GetTickCount() - start_time);
-				start_time = GetTickCount();
 			}
 			//mImageDepth = cv::Mat(frameDepth.getHeight(), frameDepth.getWidth(), CV_16UC1, (void*)frameDepth.getData());
 			//mImageDepth.convertTo(mRgbDepth, CV_8U, 1.0 / 16, 0);
@@ -422,6 +359,65 @@ int main(int argc, char** argv)
 		default:
 			printf("Error in wait\n");
 		}
+
+
+		
+		//获取当前时间  HHMM
+		time_t t = time(0);
+		char tmp[64];
+		strftime(tmp, sizeof(tmp), "%H%M", localtime(&t));
+		if (tmp[3] == 0)
+		{
+			tmp[3] = tmp[2];
+			tmp[2] = '0';
+			tmp[4] = 0;
+		}
+
+
+		//存储路径 C:/HHMM（当前时间）
+		String dir = "G:/" + String(tmp);
+		if (_access(dir.c_str(), 0) == -1)
+		{
+			//文件夹不存在 创建文件夹
+			int flag = _mkdir(dir.c_str());
+			
+			if (flag == 0)
+			{
+				cout << "save:" << counter << " and make successfully" << endl;
+			}
+			else {
+				cout << "make fsiled" << endl;
+			}
+			counter = 1;
+		}
+
+		//保存图片
+		if (depth_img_isvalid)
+		{
+			depth_img_isvalid = false;
+
+			//图片命名：xxxx.png
+			char str[256];
+			
+
+			vector<int> compression_params;
+			compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);  //选择jpeg
+			compression_params.push_back(9); //在这个填入你要的图片质量
+
+			start_time = GetTickCount();
+			sprintf(str, "%04d.png", counter);
+			String depth_dir = dir + "/" + String(str);
+			imwrite(depth_dir, mImageDepth, compression_params);
+
+			counter++;
+			
+			printf("%d\n", GetTickCount() - start_time);
+			start_time = GetTickCount();
+			
+		}
+
+
+
 
 
 		//-----------------------------------------------------

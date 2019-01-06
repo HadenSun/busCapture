@@ -31,8 +31,6 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <direct.h>
-#include <windows.h>
-#include <thread>
 
 
 using namespace std;
@@ -43,72 +41,12 @@ using namespace cv;
 bool depth_img_isvalid = false;
 bool color_img_isvalid = false;
 bool ir_img_isvalid = false;
-int flag = 0;
-int counter = 0;		//±£´æÎÄ¼ş¼ÆÊı
-cv::Mat mImageDepth;
+bool flag = 0;
 
 
 bool get_true() { return true; }
 
-void saveImg()
-{
-	while (get_true())
-	{
-		if (depth_img_isvalid)
-		{
-			DWORD start_t = GetTickCount();
-			//»ñÈ¡µ±Ç°Ê±¼ä  HHMM
-			time_t t = time(0);
-			char tmp[64];
-			strftime(tmp, sizeof(tmp), "%H%M", localtime(&t));
-			if (tmp[3] == 0)
-			{
-				tmp[3] = tmp[2];
-				tmp[2] = '0';
-				tmp[4] = 0;
-			}
-
-
-			//´æ´¢Â·¾¶ C:/HHMM£¨µ±Ç°Ê±¼ä£©
-			String dir = "G:/" + String(tmp);
-			if (_access(dir.c_str(), 0) == -1)
-			{
-				//ÎÄ¼ş¼Ğ²»´æÔÚ ´´½¨ÎÄ¼ş¼Ğ
-				int flag = _mkdir(dir.c_str());
-				
-				if (flag == 0)
-				{
-					cout << counter << "  make successfully" << endl;
-				}
-				else {
-					cout << "make fsiled" << endl;
-				}
-				counter = 1;
-			}
-
-			//±£´æÍ¼Æ¬
-
-			//Í¼Æ¬ÃüÃû£ºxxxx.png
-			char str[256];
-			sprintf(str, "%04d.png", counter);
-
-			vector<int> compression_params;
-			compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);  //Ñ¡Ôñjpeg
-			compression_params.push_back(9); //ÔÚÕâ¸öÌîÈëÄãÒªµÄÍ¼Æ¬ÖÊÁ¿
-
-			String depth_dir = dir + "/" + String(str);
-			imwrite(depth_dir, mImageDepth, compression_params);
-
-			counter++;
-
-
-			depth_img_isvalid = false;
-			printf("save time: %d\n", GetTickCount() - start_t);
-		}
-
-	}
-
-}
+Capture capture = Capture();
 
 int main(int argc, char** argv)
 {
@@ -131,19 +69,19 @@ int main(int argc, char** argv)
 	rc = openni::OpenNI::initialize();
 	printf("After initialization:\n%s\n", openni::OpenNI::getExtendedError());
 
-	rc = device.open(deviceURI);                /*´ò¿ªÈÎÒâ¿ÉÊ¶±ğ*/
+	rc = device.open(deviceURI);                /*æ‰“å¼€ä»»æ„å¯è¯†åˆ«*/
 	if (rc != openni::STATUS_OK)
 	{
 		printf("SimpleViewer: Device open failed:\n%s\n", openni::OpenNI::getExtendedError());
-		openni::OpenNI::shutdown();            /*¹Ø±Õopenni*/
+		openni::OpenNI::shutdown();            /*å…³é—­openni*/
 		return 1;
 	}
 
-	//--»ñÈ¡Çı¶¯°æ±¾ºÅ---------------------------------------
+	//--è·å–é©±åŠ¨ç‰ˆæœ¬å·---------------------------------------
 	OniVersion drver;
 	int nsize;
 	nsize = sizeof(drver);
-	device.getProperty(ONI_DEVICE_PROPERTY_DRIVER_VERSION, &drver, &nsize);    /*»ñÈ¡Çı¶¯°æ±¾ºÅ*/
+	device.getProperty(ONI_DEVICE_PROPERTY_DRIVER_VERSION, &drver, &nsize);    /*è·å–é©±åŠ¨ç‰ˆæœ¬å·*/
 	printf("AXon driver version V%d.%d.%d.%d\n", drver.major, drver.minor,
 		drver.maintenance, drver.build);
 
@@ -175,7 +113,7 @@ int main(int argc, char** argv)
 
 		for (int i = 0; i < depthinfo->getSupportedVideoModes().getSize(); i++)
 		{
-			printf("\nDepth info: videomode %d %dx%d Fps %d f %d\n", i,                          //»á±»Ö´ĞĞÊä³ö
+			printf("\nDepth info: videomode %d %dx%d Fps %d f %d\n", i,                          //ä¼šè¢«æ‰§è¡Œè¾“å‡º
 				depthinfo->getSupportedVideoModes()[i].getResolutionX(),
 				depthinfo->getSupportedVideoModes()[i].getResolutionY(),
 				depthinfo->getSupportedVideoModes()[i].getFps(),
@@ -210,23 +148,23 @@ int main(int argc, char** argv)
 	rc = color.create(device, openni::SENSOR_COLOR);
 	if (rc == openni::STATUS_OK)
 	{
-	openni::VideoMode vm;
-	openni::VideoMode dvm;
-	dvm = depth.getVideoMode();
-	vm = color.getVideoMode();
+		openni::VideoMode vm;
+		openni::VideoMode dvm;
+		dvm = depth.getVideoMode();
+		vm = color.getVideoMode();
 
-	vm.setResolution(dvm.getResolutionX(), dvm.getResolutionY());
-	color.setVideoMode(vm);
-	rc = color.start();  // start color
-	if (rc != openni::STATUS_OK)
-	{
-	printf("SimpleViewer: Couldn't start color stream:\n%s\n", openni::OpenNI::getExtendedError());
-	color.destroy();
-	}
+		vm.setResolution(dvm.getResolutionX(), dvm.getResolutionY());
+		color.setVideoMode(vm);
+		rc = color.start();  // start color
+		if (rc != openni::STATUS_OK)
+		{
+			printf("SimpleViewer: Couldn't start color stream:\n%s\n", openni::OpenNI::getExtendedError());
+			color.destroy();
+		}
 	}
 	else
 	{
-	printf("SimpleViewer: Couldn't find color stream:\n%s\n", openni::OpenNI::getExtendedError());
+		printf("SimpleViewer: Couldn't find color stream:\n%s\n", openni::OpenNI::getExtendedError());
 	}
 
 
@@ -277,44 +215,44 @@ int main(int argc, char** argv)
 	rc = ir.create(device, openni::SENSOR_IR);
 	if (rc == openni::STATUS_OK)
 	{
-	rc = ir.start();   // start IR
-	if (rc != openni::STATUS_OK)
-	{
-	printf("SimpleViewer: Couldn't start ir stream:\n%s\n", openni::OpenNI::getExtendedError());
-	ir.destroy();
-	}
+		rc = ir.start();   // start IR 
+		if (rc != openni::STATUS_OK)
+		{
+			printf("SimpleViewer: Couldn't start ir stream:\n%s\n", openni::OpenNI::getExtendedError());
+			ir.destroy();
+		}
 	}
 	else
 	{
-	printf("SimpleViewer: Couldn't find ir stream:\n%s\n", openni::OpenNI::getExtendedError());
+		printf("SimpleViewer: Couldn't find ir stream:\n%s\n", openni::OpenNI::getExtendedError());
 	}
 	AXonLinkGetExposureLevel value;
 	int nSize = sizeof(value);
 	ir.getProperty(AXONLINK_STREAM_PROPERTY_EXPOSURE_LEVEL, &value, &nSize);
 
-	printf("\nGet level:custId=%d,max=%d,current=%d\n\n", value.customID, value.maxLevel, value.curLevel);     //»á±»Ö´ĞĞÊä³ö
+	printf("\nGet level:custId=%d,max=%d,current=%d\n\n", value.customID, value.maxLevel, value.curLevel);     //ä¼šè¢«æ‰§è¡Œè¾“å‡º
 
 
 	if (!depth.isValid() || !color.isValid() || !ir.isValid())
 	{
-	printf("SimpleViewer: No valid streams. Exiting\n");
-	openni::OpenNI::shutdown();
-	return 2;
+		printf("SimpleViewer: No valid streams. Exiting\n");
+		openni::OpenNI::shutdown();
+		return 2;
 	}
 	rc = device.setDepthColorSyncEnabled(true);
 	if (rc != openni::STATUS_OK)
 	{
-	printf("start sync failed1\n");
-	openni::OpenNI::shutdown();
-	return 4;
+		printf("start sync failed1\n");
+		openni::OpenNI::shutdown();
+		return 4;
 	}
 
-	rc = device.setImageRegistrationMode(IMAGE_REGISTRATION_DEPTH_TO_COLOR);				//¶ÔÆë
+	rc = device.setImageRegistrationMode(IMAGE_REGISTRATION_DEPTH_TO_COLOR);				//å¯¹é½
 	if (rc != openni::STATUS_OK)
 	{
-	printf("start registration failed\n");
-	openni::OpenNI::shutdown();
-	return 5;
+		printf("start registration failed\n");
+		openni::OpenNI::shutdown();
+		return 5;
 	}
 	*/
 
@@ -333,6 +271,7 @@ int main(int argc, char** argv)
 	cv::Mat mScaledDepth;
 	cv::Mat mRgbDepth;
 	cv::Mat mScaledIr;
+	cv::Mat mImageDepth;
 	cv::Mat mImageRGB;
 	cv::Mat mImageIr;
 
@@ -341,19 +280,16 @@ int main(int argc, char** argv)
 
 	cv::Mat mFaceImg;
 
+
 	Vec3b colorpix = Vec3b(255, 255, 0);
 	Vec3b color_value;
 
 
 	int readIndex = 0;
-	
-	unsigned char imageBuffer1[18432000];		//30ÕÅÍ¼Æ¬ 18432000  20ÕÅÍ¼Æ¬12288000  10ÕÅÍ¼Æ¬6144000
-	unsigned char imageBuffer2[18432000];
+	int count = 0;		//ä¿å­˜æ–‡ä»¶è®¡æ•°
 
-	
-	thread hThread = thread(saveImg);
 
-	DWORD start_time = GetTickCount();
+
 	//-------------------------
 	// main loop 
 	//-------------------------
@@ -369,31 +305,13 @@ int main(int argc, char** argv)
 		switch (changedIndex)
 		{
 		case 0:
-			depth.readFrame(&frameDepth);                    //¶ÁÉî¶ÈÁ÷Ö¡Êı¾İ
-			
-			unsigned char* tmp;
-			if (flag)
-				tmp = imageBuffer1 + readIndex * 614400;
-			else
-				tmp = imageBuffer2 + readIndex * 614400;
-			memcpy(tmp, frameDepth.getData(), 614400);
+			depth.readFrame(&frameDepth);                    //è¯»æ·±åº¦æµå¸§æ•°æ®
 			readIndex++;
-			if (readIndex >= 30)
-			{
-				readIndex = 0;
-				if (flag)
-					mImageDepth = cv::Mat(30, 307200, CV_16U, (void*)imageBuffer1);
-				else
-					mImageDepth = cv::Mat(30, 307200, CV_16U, (void*)imageBuffer2);
-				flag = ~flag;
-				depth_img_isvalid = true;
+			depth_img_isvalid = true;
 
-				printf("capture time: %d\n", GetTickCount() - start_time);
-				start_time = GetTickCount();
-			}
-			//mImageDepth = cv::Mat(frameDepth.getHeight(), frameDepth.getWidth(), CV_16UC1, (void*)frameDepth.getData());
+			mImageDepth = cv::Mat(frameDepth.getHeight(), frameDepth.getWidth(), CV_16UC1, (void*)frameDepth.getData());
 			//mImageDepth.convertTo(mRgbDepth, CV_8U, 1.0 / 16, 0);
-			//applyColorMap(mRgbDepth, mRgbDepth, COLORMAP_JET);	  //½«mImageDepth±ä³É¿´ËÆµÄÉî¶ÈÍ¼(Î±²ÊÉ«Í¼)
+			//applyColorMap(mRgbDepth, mRgbDepth, COLORMAP_JET);	  //å°†mImageDepthå˜æˆçœ‹ä¼¼çš„æ·±åº¦å›¾(ä¼ªå½©è‰²å›¾)
 
 			//imshow("Depth", mRgbDepth);
 			//waitKey(1);
@@ -424,18 +342,70 @@ int main(int argc, char** argv)
 		}
 
 
+		
+		//è·å–å½“å‰æ—¶é—´  HHMM
+		time_t t = time(0);
+		char tmp[64];
+		strftime(tmp, sizeof(tmp), "%H%M", localtime(&t));
+		if (tmp[3] == 0)
+		{
+			tmp[3] = tmp[2];
+			tmp[2] = '0';
+			tmp[4] = 0;
+		}
+
+
+		//å­˜å‚¨è·¯å¾„ C:/HHMMï¼ˆå½“å‰æ—¶é—´ï¼‰
+		String dir = "C:/" + String(tmp);
+		if (_access(dir.c_str(), 0) == -1)
+		{
+			//æ–‡ä»¶å¤¹ä¸å­˜åœ¨ åˆ›å»ºæ–‡ä»¶å¤¹
+			int flag = _mkdir(dir.c_str());
+			count = 1;
+			if (flag == 0)
+			{
+				cout << "make successfully" << endl;
+			}
+			else {
+				cout << "make fsiled" << endl;
+			}
+		}
+
+		//ä¿å­˜å›¾ç‰‡
+		if (depth_img_isvalid)
+		{
+			depth_img_isvalid = false;
+
+			//å›¾ç‰‡å‘½åï¼šxxxx.png
+			char str[256];
+			sprintf(str, "%04d.png", count);
+
+			vector<int> compression_params;
+			compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);  //é€‰æ‹©jpeg
+			compression_params.push_back(9); //åœ¨è¿™ä¸ªå¡«å…¥ä½ è¦çš„å›¾ç‰‡è´¨é‡
+
+			String depth_dir = dir + "/" + String(str);
+			imwrite(depth_dir, mImageDepth, compression_params);
+
+			count++;
+		}
+		
+
+
+
+
 		//-----------------------------------------------------
-		// ÖÕÖ¹¿ì½İ¼ü
+		// ç»ˆæ­¢å¿«æ·é”®
 		if (cv::waitKey(10) == 'q')
 			break;
 	}
-	// ¹Ø±ÕÊı¾İÁ÷
+	// å…³é—­æ•°æ®æµ
 	depth.destroy();
 	color.destroy();
 	ir.destroy();
-	// ¹Ø±ÕÉè±¸
+	// å…³é—­è®¾å¤‡
 	device.close();
-	// ×îºó¹Ø±ÕOpenNI
+	// æœ€åå…³é—­OpenNI
 	openni::OpenNI::shutdown();
 	return 0;
 }
